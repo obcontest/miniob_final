@@ -1,0 +1,4 @@
+create table t1 (a int, b date, c chars);
+Failed to parse sql: create table t1 (a int, b date, c chars);, error msg: Unknown error
+delete from t1 where b='2020-02-30';
+FAILURE

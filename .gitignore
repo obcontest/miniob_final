@@ -1,6 +1,7 @@
 ./deps/libevent/*
 ./deps/googletest/*
 ./deps/jsoncpp/*
+./deps/common/*
 build/*
 cmake-build-*/*
 .vscode/*
@@ -12,3 +13,7 @@ compile_commands.json
 ./vcs.xml
 ./workspace.xml
 ./modules.xml
+*.output
+*.ans
+./test/case/miniob_data_test/*
+./test/case/result_tmp/*

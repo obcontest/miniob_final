@@ -1,0 +1,72 @@
+create table t7 (a int, b float, c char, d date);
+Failed to parse sql: create table t7 (a int, b float, c char, d date);, error msg: Unknown error
+create index c_id on t7 (c);
+FAILURE
+insert into t7 values(1,1.1,'a','2020-1-3');
+FAILURE
+insert into t7 values(2,1.2,'b','2019-2-28');
+FAILURE
+insert into t7 values(3,1.3,'c','2018-3-30');
+FAILURE
+insert into t7 values(4,1.4,'d','2017-4-29');
+FAILURE
+insert into t7 values(5,1.5,'e','2016-5-30');
+FAILURE
+insert into t7 values(6,1.6,'f','2015-6-29');
+FAILURE
+insert into t7 values(7,-1.1,'g','2014-7-28');
+FAILURE
+insert into t7 values(8,-2.2,'h','2013-8-29');
+FAILURE
+Select * from t7 where d <> '2010-13-21';    
+No data
+Select * from t7 where d = '2010-15-2';
+No data
+Select * from t7 where d <> '2010-0-21';   
+No data
+Select * from t7 where d = '2010-0-2';
+No data
+Select * from t7 where d < '2021-1-32';
+No data
+Select * from t7 where d > '2021-2-29';
+No data
+Select * from t7 where d = '2021-3-32';
+No data
+Select * from t7 where d <= '2021-4-31';
+No data
+Select * from t7 where d <= '2021-5-32';
+No data
+Select * from t7 where d >= '2021-6-31';
+No data
+Select * from t7 where d < '2021-7-32';
+No data
+Select * from t7 where d <> '2021-8-32';
+No data
+Select * from t7 where d < '2021-9-30';
+No data
+Select * from t7 where d <> '2021-10-32';
+No data
+Select * from t7 where d <> '2021-11-31';
+No data
+Select * from t7 where d = '2021-12-32';
+No data
+Select * from t7 where d = '2021-1-0';
+No data
+Select * from t7 where d = '2021-0-0';
+No data
+Select a from t7 where d <= '2019-2-28';
+No data
+Select a from t7 where '2018-2-28' > d;
+No data
+Select a from t7 where '2017-4-29' <= d;
+No data
+Select b from t7 where '2019-2-28' = d;
+No data
+Select a from t7 where '2017-4-29' <> d;
+No data
+Select * from t7 where  d >= '2015-6-30';
+No data
+Select * from t7 where d > '2018-2-27';
+No data
+drop table t7;
+Unsupported sql: 6

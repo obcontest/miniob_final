@@ -1,0 +1,10 @@
+create table t (a int nullable, b float not null);
+Failed to parse sql: create table t (a int nullable, b float not null);, error msg: Unknown error
+insert into t values(1,1.0),(null,2.0);
+Failed to parse sql: insert into t values(1,1.0),(null,2.0);, error msg: Unknown error
+insert into t values(1,null);
+Failed to parse sql: insert into t values(1,null);, error msg: Unknown error
+select * from t;
+No data
+drop table t;
+Unsupported sql: 6

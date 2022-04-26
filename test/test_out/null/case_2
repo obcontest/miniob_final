@@ -1,0 +1,6 @@
+create table t (a int nullable, b float nullable,c char nullable, d date nullable);
+Failed to parse sql: create table t (a int nullable, b float nullable,c char nullable, d date nullable);, error msg: Unknown error
+insert into t values(0,1.0,null,null),(null,null,'b','2020-1-1'),(2,2.0,'c',null);
+Failed to parse sql: insert into t values(0,1.0,null,null),(null,null,'b','2020-1-1'),(2,2.0,'c',null);, error msg: Unknown error
+select * from t where null is  null;
+Connection has been closed
