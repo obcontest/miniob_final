@@ -384,7 +384,7 @@ std::string DefaultStorageStage::load_data(const char *db_name, const char *tabl
   int insertion_count = 0;
   RC rc = RC::SUCCESS;
   std::vector<std::vector<std::string>> lines;
-  std::vector<std::unordered_map<std::string, int>> str_map(9);
+  std::vector<std::unordered_set<std::string>> str_sets(9);
   while (!fs.eof() && RC::SUCCESS == rc) {
     std::getline(fs, line);
     line_num++;
@@ -395,10 +395,7 @@ std::string DefaultStorageStage::load_data(const char *db_name, const char *tabl
     file_values.clear();
     common::split_string(line, delim, file_values);
     for (int i = 0; i < 9; i++) {
-      auto& cnt = str_map[i][file_values[i + 3]];
-      if (cnt < 256) {
-        cnt++;
-      }
+      str_sets[i].insert(file_values[i + 3]);
     }
     lines.push_back(file_values);
     // std::stringstream errmsg;
@@ -415,8 +412,9 @@ std::string DefaultStorageStage::load_data(const char *db_name, const char *tabl
 
   std::vector<int> can_be_compressed;
   for (int i = 0; i < 9; i++) {
-    if (str_map[i].size() < 256) {
-      can_be_compressed.push_back(i + 3);      
+    if (str_sets[i].size() < 256) {
+      can_be_compressed.push_back(i + 4);
+      LOG_ERROR("can_be_compressed:%d", i + 4);
     }
   }
 
@@ -428,29 +426,31 @@ std::string DefaultStorageStage::load_data(const char *db_name, const char *tabl
     compressed_field->compressed = true;
     compressed_field->attr_len_ = 1;
     int compressed_byte = 0;
-    auto iter = str_map[field_id - 3].begin();
-    for (iter; iter != str_map[field_id - 3].end(); iter++) {
-      compressed_field->str_map[compressed_byte++] = iter->first;
+    auto iter = str_sets[field_id - 4].begin();
+    for (iter; iter != str_sets[field_id - 4].end(); iter++) {
+      // LOG_ERROR("k:%d v:%s", compressed_byte, iter->c_str());
+      compressed_field->reverse_str_map[*iter] = compressed_byte;
+      compressed_field->str_map[compressed_byte++] = *iter;
     }
   }
-  int start = mutable_table_meta.field(2)->offset() + mutable_table_meta.field(2)->len();
+  int start = mutable_table_meta.field(3)->offset() + mutable_table_meta.field(3)->len();
   for (int i = 0; i < 9; i++) {
-    FieldMeta* field = mutable_table_meta.mutable_field(i + 3);
+    FieldMeta* field = mutable_table_meta.mutable_field(i + 4);
     field->attr_offset_ = start;
     start += field->attr_len_;
   }
   mutable_table_meta.record_size_ = start;
 
   std::string path = mutable_table_meta.path_;
-  std::fstream fs;
-  fs.open(path, std::ios_base::out | std::ios_base::binary);
-  if (!fs.is_open()) {
+  std::fstream table_meta_fs;
+  table_meta_fs.open(path, std::ios_base::out | std::ios_base::binary);
+  if (!table_meta_fs.is_open()) {
     LOG_ERROR("Failed to open file for write. file name=%s, errmsg=%s", path, strerror(errno));
   }
 
   // 记录元数据到文件中
-  mutable_table_meta.serialize(fs);
-  fs.close();
+  mutable_table_meta.serialize(table_meta_fs);
+  table_meta_fs.close();
 
   // 最后进行insert
   for (int line_num = 0; line_num != lines.size(); line_num++) {

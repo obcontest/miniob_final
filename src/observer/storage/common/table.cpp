@@ -337,6 +337,9 @@ RC Table::make_record(int value_num, const Value *values, char *&record_out)
     if (field->compressed) {
       std::string s((char *)value.data);
       auto v = field->reverse_str_map.find(s);
+      if (v == field->reverse_str_map.end()) {
+        LOG_ERROR("field_id:%d not found '%s'", i + normal_field_start_index, s.c_str());
+      }
       assert(v != field->reverse_str_map.end());
       uint8_t compressed = v->second;
       memcpy(record + field->offset(), &compressed, sizeof(compressed));

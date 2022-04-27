@@ -50,7 +50,7 @@ public:
 public:
   std::string name_;
   AttrType attr_type_;
-  bool compressed; // load 初始化
+  bool compressed = false; // load 初始化
   int attr_offset_;
   int attr_len_;
   bool visible_;
