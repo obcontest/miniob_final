@@ -350,8 +350,7 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid)
     if (!record_page_handler_.is_full()) {
       page_found = true;
       break;
-    } else if (record_page_handler_.is_full() && current_page_num == page_count - 1)
-      break;
+    } 
   }
 
   // 找不到就分配一个新的页面
