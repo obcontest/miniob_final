@@ -394,10 +394,9 @@ std::string DefaultStorageStage::load_data(const char *db_name, const char *tabl
 
     file_values.clear();
     common::split_string(line, delim, file_values);
-    if (line_num <= 1000000) {
-      for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 9; i++) {
+      if (str_sets[i].size() < 256)
         str_sets[i].insert(file_values[i + 3]);
-      }
     }
     lines.push_back(file_values);
     // std::stringstream errmsg;
