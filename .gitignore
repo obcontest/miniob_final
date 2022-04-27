@@ -1,3 +1,4 @@
+data/
 ./deps/libevent/*
 ./deps/googletest/*
 ./deps/jsoncpp/*
