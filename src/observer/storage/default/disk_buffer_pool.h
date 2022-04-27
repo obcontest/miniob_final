@@ -26,7 +26,7 @@ See the Mulan PSL v2 for more details. */
 #include "rc.h"
 #include "common/mm/mem_pool.h"
 
-typedef int PageNum;
+typedef int16_t PageNum;
 
 //
 #define BP_INVALID_PAGE_NUM (-1)
