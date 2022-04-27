@@ -246,7 +246,7 @@ void TupleRecordConverter::add_record(const Record *record)
       if (field_meta->attr_type_ == INTS) {
         int page_size = BP_PAGE_DATA_SIZE / sizeof(char);
         int record_phy_size = align8(table_meta.record_size_);
-        tuple.add(record->rid.page_num * page_record_capacity(page_size, record_phy_size) + record->rid.slot_num);
+        tuple.add((record->rid.page_num - 1) * page_record_capacity(page_size, record_phy_size) + record->rid.slot_num + 1);
       }
       else{
         auto iter = field_meta->str_map.find(*(uint8_t *)(record->data + field_meta->offset()));
