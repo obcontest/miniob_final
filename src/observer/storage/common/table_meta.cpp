@@ -83,7 +83,15 @@ RC TableMeta::init(const char *name, const std::string& path, int field_num, con
 
   for (int i = 0; i < field_num; i++) {
     const AttrInfo &attr_info = attributes[i];
-    rc = fields_[i + sys_fields_.size()].init(attr_info.name, attr_info.type, field_offset, attr_info.length, true);
+    if (attr_info.type == CHARS)
+    {
+      rc = fields_[i + sys_fields_.size()].init(attr_info.name, attr_info.type, field_offset,3, true);
+    }
+    else{
+      rc = fields_[i + sys_fields_.size()].init(attr_info.name, attr_info.type, field_offset, attr_info.length, true);
+    }
+    
+
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Failed to init field meta. table name=%s, field name: %s", name, attr_info.name);
       return rc;
