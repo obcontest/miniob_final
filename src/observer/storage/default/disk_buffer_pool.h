@@ -33,7 +33,7 @@ typedef int PageNum;
 #define BP_PAGE_SIZE (1 << 17)
 #define BP_PAGE_DATA_SIZE (BP_PAGE_SIZE - sizeof(PageNum))
 #define BP_FILE_SUB_HDR_SIZE (sizeof(BPFileSubHeader))
-#define BP_BUFFER_SIZE (1 << 16)
+#define BP_BUFFER_SIZE 256
 #define MAX_OPEN_FILE 1024
 
 typedef struct {
