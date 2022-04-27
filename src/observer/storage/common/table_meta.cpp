@@ -215,7 +215,7 @@ int TableMeta::serialize(std::ostream &ss) const
     indexes_value.append(std::move(index_value));
   }
   table_value[FIELD_INDEXES] = std::move(indexes_value);
-  table_value[FIELD_PATH] = std::move(path_);
+  table_value[FIELD_PATH] = path_;
 
   Json::StreamWriterBuilder builder;
   Json::StreamWriter *writer = builder.newStreamWriter();
