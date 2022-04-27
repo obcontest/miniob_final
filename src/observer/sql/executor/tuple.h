@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/parser/parse.h"
 #include "sql/executor/value.h"
+#include "storage/common/record_manager.h"
 
 class Table;
 
@@ -167,7 +168,7 @@ class TupleRecordConverter {
 public:
   TupleRecordConverter(Table *table, TupleSet &tuple_set);
 
-  void add_record(const char *record);
+  void add_record(const Record *record);
 
 private:
   Table *table_;

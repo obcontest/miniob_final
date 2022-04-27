@@ -22,7 +22,7 @@ using namespace common;
 
 int align8(int size)
 {
-  return size / 8 * 8 + ((size % 8 == 0) ? 0 : 8);
+  return size ;
 }
 
 int page_fix_size()

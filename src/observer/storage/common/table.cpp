@@ -336,14 +336,22 @@ RC Table::make_record(int value_num, const Value *values, char *&record_out)
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &value = values[i];
     if (field->compressed) {
-      std::string s((char *)value.data);
-      auto v = field->reverse_str_map.find(s);
-      if (v == field->reverse_str_map.end()) {
-        LOG_ERROR("field_id:%d not found '%s'", i + normal_field_start_index, s.c_str());
+      if (field->attr_type_ == INTS)  {
+        uint8_t compressed = 1;
+        memcpy(record + field->offset(), &compressed, sizeof(compressed));
       }
-      assert(v != field->reverse_str_map.end());
-      uint8_t compressed = v->second;
-      memcpy(record + field->offset(), &compressed, sizeof(compressed));
+      else{
+        std::string s((char *)value.data);
+        auto v = field->reverse_str_map.find(s);
+        if (v == field->reverse_str_map.end()) {
+          LOG_ERROR("field_id:%d not found '%s'", i + normal_field_start_index, s.c_str());
+        }
+        assert(v != field->reverse_str_map.end());
+        uint8_t compressed = v->second;
+        memcpy(record + field->offset(), &compressed, sizeof(compressed));
+      }
+      
+      
     } else {
       memcpy(record + field->offset(), value.data, field->len());
     }
@@ -386,17 +394,17 @@ RC Table::init_record_handler(const char *base_dir)
  */
 class RecordReaderScanAdapter {
 public:
-  explicit RecordReaderScanAdapter(void (*record_reader)(const char *data, void *context), void *context)
+  explicit RecordReaderScanAdapter(void (*record_reader)(const Record *data, void *context), void *context)
       : record_reader_(record_reader), context_(context)
   {}
 
   void consume(const Record *record)
   {
-    record_reader_(record->data, context_);
+    record_reader_(record, context_);
   }
 
 private:
-  void (*record_reader_)(const char *, void *);
+  void (*record_reader_)(const Record *, void *);
   void *context_;
 };
 
@@ -408,7 +416,7 @@ static RC scan_record_reader_adapter(Record *record, void *context)
 }
 
 RC Table::scan_record(
-    Trx *trx, ConditionFilter *filter, int limit, void *context, void (*record_reader)(const char *data, void *context))
+    Trx *trx, ConditionFilter *filter, int limit, void *context, void (*record_reader)(const Record *data, void *context))
 {
   RecordReaderScanAdapter adapter(record_reader, context);
   return scan_record(trx, filter, limit, (void *)&adapter, scan_record_reader_adapter);

@@ -222,4 +222,7 @@ private:
   RecordPageHandler record_page_handler_;
 };
 
+
+int align8(int size);
+int page_record_capacity(int page_size, int record_size);
 #endif  //__OBSERVER_STORAGE_COMMON_RECORD_MANAGER_H_
