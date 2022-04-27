@@ -85,7 +85,7 @@ RC Table::create(
   close(fd);
 
   // 创建文件
-  if ((rc = table_meta_.init(name, attribute_count, attributes)) != RC::SUCCESS) {
+  if ((rc = table_meta_.init(name, path, attribute_count, attributes)) != RC::SUCCESS) {
     LOG_ERROR("Failed to init table meta. name:%s, ret:%d", name, rc);
     return rc;  // delete table file
   }
@@ -300,6 +300,11 @@ const TableMeta &Table::table_meta() const
   return table_meta_;
 }
 
+TableMeta& Table::mutable_table_meta()
+{
+  return table_meta_;
+}
+
 RC Table::make_record(int value_num, const Value *values, char *&record_out)
 {
   // 检查字段类型是否一致
@@ -329,7 +334,15 @@ RC Table::make_record(int value_num, const Value *values, char *&record_out)
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &value = values[i];
-    memcpy(record + field->offset(), value.data, field->len());
+    if (field->compressed) {
+      std::string s((char *)value.data);
+      auto v = field->reverse_str_map.find(s);
+      assert(v != field->reverse_str_map.end());
+      uint8_t compressed = v->second;
+      memcpy(record + field->offset(), &compressed, sizeof(compressed));
+    } else {
+      memcpy(record + field->offset(), value.data, field->len());
+    }
   }
 
   record_out = record;

@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "common/lang/bitmap.h"
 #include "condition_filter.h"
+#include "field_meta.h"
 
 using namespace common;
 

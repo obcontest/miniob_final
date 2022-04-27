@@ -32,7 +32,7 @@ public:
 
   void swap(TableMeta &other) noexcept;
 
-  RC init(const char *name, int field_num, const AttrInfo attributes[]);
+  RC init(const char *name, const std::string& path, int field_num, const AttrInfo attributes[]);
 
   RC add_index(const IndexMeta &index);
 
@@ -40,6 +40,7 @@ public:
   const char *name() const;
   const FieldMeta *trx_field() const;
   const FieldMeta *field(int index) const;
+  FieldMeta *mutable_field(int index);
   const FieldMeta *field(const char *name) const;
   const FieldMeta *find_field_by_offset(int offset) const;
   int field_num() const;
@@ -67,10 +68,12 @@ protected:
   std::vector<FieldMeta> fields_;  // 包含sys_fields
   std::vector<IndexMeta> indexes_;
 
-  int record_size_ = 0;
 
   //@@@ TODO why used static variable?
   static std::vector<FieldMeta> sys_fields_;
+public:
+  std::string path_;
+  int record_size_ = 0;
 };
 
 #endif  // __OBSERVER_STORAGE_COMMON_TABLE_META_H__

@@ -242,21 +242,28 @@ void TupleRecordConverter::add_record(const char *record)
   for (const TupleField &field : schema.fields()) {
     const FieldMeta *field_meta = table_meta.field(field.field_name());
     assert(field_meta != nullptr);
-    switch (field_meta->type()) {
-      case INTS: {
-        int value = *(int *)(record + field_meta->offset());
-        tuple.add(value);
-      } break;
-      case FLOATS: {
-        float value = *(float *)(record + field_meta->offset());
-        tuple.add(value);
-      } break;
-      case CHARS: {
-        const char *s = record + field_meta->offset();  // 现在当做Cstring来处理
-        tuple.add(s, strlen(s));
-      } break;
-      default: {
-        LOG_PANIC("Unsupported field type. type=%d", field_meta->type());
+    if (field_meta->compressed) {
+      auto iter = field_meta->str_map.find(*(uint8_t *)(record + field_meta->offset()));
+      assert(iter != field_meta->str_map.end());
+      const char* s = iter->second.c_str();
+      tuple.add(s, strlen(s));
+    } else {
+      switch (field_meta->type()) {
+        case INTS: {
+          int value = *(int *)(record + field_meta->offset());
+          tuple.add(value);
+        } break;
+        case FLOATS: {
+          float value = *(float *)(record + field_meta->offset());
+          tuple.add(value);
+        } break;
+        case CHARS: {
+          const char *s = record + field_meta->offset();  // 现在当做Cstring来处理
+          tuple.add(s, strlen(s));
+        } break;
+        default: {
+          LOG_PANIC("Unsupported field type. type=%d", field_meta->type());
+        }
       }
     }
   }

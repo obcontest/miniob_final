@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #define __OBSERVER_STORAGE_COMMON_FIELD_META_H__
 
 #include <string>
+#include <unordered_map>
 
 #include "rc.h"
 #include "sql/parser/parse_defs.h"
@@ -46,11 +47,14 @@ public:
   void to_json(Json::Value &json_value) const;
   static RC from_json(const Json::Value &json_value, FieldMeta &field);
 
-protected:
+public:
   std::string name_;
   AttrType attr_type_;
+  bool compressed; // load 初始化
   int attr_offset_;
   int attr_len_;
   bool visible_;
+  std::unordered_map<int, std::string> str_map; // load 初始化 1 byte key, 3 byte string
+  std::unordered_map<std::string, int> reverse_str_map;
 };
 #endif  // __OBSERVER_STORAGE_COMMON_FIELD_META_H__

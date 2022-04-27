@@ -23,6 +23,7 @@ See the Mulan PSL v2 for more details. */
 static const Json::StaticString FIELD_TABLE_NAME("table_name");
 static const Json::StaticString FIELD_FIELDS("fields");
 static const Json::StaticString FIELD_INDEXES("indexes");
+static const Json::StaticString FIELD_PATH("path");
 
 std::vector<FieldMeta> TableMeta::sys_fields_;
 
@@ -51,7 +52,7 @@ RC TableMeta::init_sys_fields()
   sys_fields_.push_back(field_meta);
   return rc;
 }
-RC TableMeta::init(const char *name, int field_num, const AttrInfo attributes[])
+RC TableMeta::init(const char *name, const std::string& path, int field_num, const AttrInfo attributes[])
 {
   if (common::is_blank(name)) {
     LOG_ERROR("Name cannot be empty");
@@ -94,6 +95,7 @@ RC TableMeta::init(const char *name, int field_num, const AttrInfo attributes[])
   record_size_ = field_offset;
 
   name_ = name;
+  path_ = path;
   LOG_INFO("Sussessfully initialized table meta. table name=%s", name);
   return RC::SUCCESS;
 }
@@ -118,6 +120,12 @@ const FieldMeta *TableMeta::field(int index) const
 {
   return &fields_[index];
 }
+
+FieldMeta *TableMeta::mutable_field(int index)
+{
+  return &fields_[index];
+}
+
 const FieldMeta *TableMeta::field(const char *name) const
 {
   if (nullptr == name) {
@@ -207,6 +215,7 @@ int TableMeta::serialize(std::ostream &ss) const
     indexes_value.append(std::move(index_value));
   }
   table_value[FIELD_INDEXES] = std::move(indexes_value);
+  table_value[FIELD_PATH] = std::move(path_);
 
   Json::StreamWriterBuilder builder;
   Json::StreamWriter *writer = builder.newStreamWriter();

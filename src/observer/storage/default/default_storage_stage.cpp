@@ -383,6 +383,8 @@ std::string DefaultStorageStage::load_data(const char *db_name, const char *tabl
   int line_num = 0;
   int insertion_count = 0;
   RC rc = RC::SUCCESS;
+  std::vector<std::vector<std::string>> lines;
+  std::vector<std::unordered_map<std::string, int>> str_map(9);
   while (!fs.eof() && RC::SUCCESS == rc) {
     std::getline(fs, line);
     line_num++;
@@ -392,8 +394,68 @@ std::string DefaultStorageStage::load_data(const char *db_name, const char *tabl
 
     file_values.clear();
     common::split_string(line, delim, file_values);
+    for (int i = 0; i < 9; i++) {
+      auto& cnt = str_map[i][file_values[i + 3]];
+      if (cnt < 256) {
+        cnt++;
+      }
+    }
+    lines.push_back(file_values);
+    // std::stringstream errmsg;
+    // rc = insert_record_from_file(table, file_values, record_values, errmsg);
+    // if (rc != RC::SUCCESS) {
+    //   result_string << "Line:" << line_num << " insert record failed:" << errmsg.str() << ". error:" << strrc(rc)
+    //                 << std::endl;
+    // } else {
+    //   insertion_count++;
+    // }
+  }    
+
+  fs.close();
+
+  std::vector<int> can_be_compressed;
+  for (int i = 0; i < 9; i++) {
+    if (str_map[i].size() < 256) {
+      can_be_compressed.push_back(i + 3);      
+    }
+  }
+
+  // update field meta and table meta
+  TableMeta& mutable_table_meta = table->mutable_table_meta();
+  for (int i = 0; i < can_be_compressed.size(); i++) {
+    int field_id = can_be_compressed[i];
+    FieldMeta* compressed_field = mutable_table_meta.mutable_field(field_id);
+    compressed_field->compressed = true;
+    compressed_field->attr_len_ = 1;
+    int compressed_byte = 0;
+    auto iter = str_map[field_id - 3].begin();
+    for (iter; iter != str_map[field_id - 3].end(); iter++) {
+      compressed_field->str_map[compressed_byte++] = iter->first;
+    }
+  }
+  int start = mutable_table_meta.field(2)->offset() + mutable_table_meta.field(2)->len();
+  for (int i = 0; i < 9; i++) {
+    FieldMeta* field = mutable_table_meta.mutable_field(i + 3);
+    field->attr_offset_ = start;
+    start += field->attr_len_;
+  }
+  mutable_table_meta.record_size_ = start;
+
+  std::string path = mutable_table_meta.path_;
+  std::fstream fs;
+  fs.open(path, std::ios_base::out | std::ios_base::binary);
+  if (!fs.is_open()) {
+    LOG_ERROR("Failed to open file for write. file name=%s, errmsg=%s", path, strerror(errno));
+  }
+
+  // 记录元数据到文件中
+  mutable_table_meta.serialize(fs);
+  fs.close();
+
+  // 最后进行insert
+  for (int line_num = 0; line_num != lines.size(); line_num++) {
     std::stringstream errmsg;
-    rc = insert_record_from_file(table, file_values, record_values, errmsg);
+    rc = insert_record_from_file(table, lines[line_num], record_values, errmsg);
     if (rc != RC::SUCCESS) {
       result_string << "Line:" << line_num << " insert record failed:" << errmsg.str() << ". error:" << strrc(rc)
                     << std::endl;
@@ -401,7 +463,6 @@ std::string DefaultStorageStage::load_data(const char *db_name, const char *tabl
       insertion_count++;
     }
   }
-  fs.close();
 
   struct timespec end_time;
   clock_gettime(CLOCK_MONOTONIC, &end_time);
