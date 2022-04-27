@@ -394,8 +394,10 @@ std::string DefaultStorageStage::load_data(const char *db_name, const char *tabl
 
     file_values.clear();
     common::split_string(line, delim, file_values);
-    for (int i = 0; i < 9; i++) {
-      str_sets[i].insert(file_values[i + 3]);
+    if (line_num <= 1000000) {
+      for (int i = 0; i < 9; i++) {
+        str_sets[i].insert(file_values[i + 3]);
+      }
     }
     lines.push_back(file_values);
     // std::stringstream errmsg;
@@ -406,7 +408,7 @@ std::string DefaultStorageStage::load_data(const char *db_name, const char *tabl
     // } else {
     //   insertion_count++;
     // }
-  }    
+  }
 
   fs.close();
 
@@ -419,10 +421,10 @@ std::string DefaultStorageStage::load_data(const char *db_name, const char *tabl
   }
 
   // update field meta and table meta
-  TableMeta& mutable_table_meta = table->mutable_table_meta();
+  TableMeta &mutable_table_meta = table->mutable_table_meta();
   for (int i = 0; i < can_be_compressed.size(); i++) {
     int field_id = can_be_compressed[i];
-    FieldMeta* compressed_field = mutable_table_meta.mutable_field(field_id);
+    FieldMeta *compressed_field = mutable_table_meta.mutable_field(field_id);
     compressed_field->compressed = true;
     compressed_field->attr_len_ = 1;
     int compressed_byte = 0;
@@ -435,7 +437,7 @@ std::string DefaultStorageStage::load_data(const char *db_name, const char *tabl
   }
   int start = mutable_table_meta.field(3)->offset() + mutable_table_meta.field(3)->len();
   for (int i = 0; i < 9; i++) {
-    FieldMeta* field = mutable_table_meta.mutable_field(i + 4);
+    FieldMeta *field = mutable_table_meta.mutable_field(i + 4);
     field->attr_offset_ = start;
     start += field->attr_len_;
   }
