@@ -85,7 +85,8 @@ RC Table::create(
   close(fd);
 
   // 创建文件
-  if ((rc = table_meta_.init(name, path, attribute_count, attributes)) != RC::SUCCESS) {
+  std::string path_s(path);
+  if ((rc = table_meta_.init(name, path_s, attribute_count, attributes)) != RC::SUCCESS) {
     LOG_ERROR("Failed to init table meta. name:%s, ret:%d", name, rc);
     return rc;  // delete table file
   }
@@ -93,7 +94,7 @@ RC Table::create(
   std::fstream fs;
   fs.open(path, std::ios_base::out | std::ios_base::binary);
   if (!fs.is_open()) {
-    LOG_ERROR("Failed to open file for write. file name=%s, errmsg=%s", path, strerror(errno));
+    LOG_ERROR("Failed to open file for data write. file name=%s, errmsg=%s", path, strerror(errno));
     return RC::IOERR;
   }
 
@@ -581,7 +582,7 @@ RC Table::create_index(Trx *trx, const char *index_name, const char *attribute_n
   std::fstream fs;
   fs.open(tmp_file, std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
   if (!fs.is_open()) {
-    LOG_ERROR("Failed to open file for write. file name=%s, errmsg=%s", tmp_file.c_str(), strerror(errno));
+    LOG_ERROR("Failed to open file for metadata write. file name=%s, errmsg=%s", tmp_file.c_str(), strerror(errno));
     return RC::IOERR;  // 创建索引中途出错，要做还原操作
   }
   if (new_table_meta.serialize(fs) < 0) {
