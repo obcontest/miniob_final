@@ -223,30 +223,30 @@ RC Table::insert_record(Trx *trx, Record *record)
 {
   RC rc = RC::SUCCESS;
 
-  if (trx != nullptr) {
-    trx->init_trx_info(this, *record);
-  }
+  // if (trx != nullptr) {
+  //   trx->init_trx_info(this, *record);
+  // }
   rc = record_handler_->insert_record(record->data, table_meta_.record_size(), &record->rid);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Insert record failed. table name=%s, rc=%d:%s", table_meta_.name(), rc, strrc(rc));
     return rc;
   }
 
-  if (trx != nullptr) {
-    rc = trx->insert_record(this, record);
-    if (rc != RC::SUCCESS) {
-      LOG_ERROR("Failed to log operation(insertion) to trx");
+  // if (trx != nullptr) {
+  //   rc = trx->insert_record(this, record);
+  //   if (rc != RC::SUCCESS) {
+  //     LOG_ERROR("Failed to log operation(insertion) to trx");
 
-      RC rc2 = record_handler_->delete_record(&record->rid);
-      if (rc2 != RC::SUCCESS) {
-        LOG_ERROR("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
-            name(),
-            rc2,
-            strrc(rc2));
-      }
-      return rc;
-    }
-  }
+  //     RC rc2 = record_handler_->delete_record(&record->rid);
+  //     if (rc2 != RC::SUCCESS) {
+  //       LOG_ERROR("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
+  //           name(),
+  //           rc2,
+  //           strrc(rc2));
+  //     }
+  //     return rc;
+  //   }
+  // }
 
   rc = insert_entry_of_indexes(record->data, record->rid);
   if (rc != RC::SUCCESS) {
