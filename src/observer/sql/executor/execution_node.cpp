@@ -37,7 +37,7 @@ RC SelectExeNode::init(
   return RC::SUCCESS;
 }
 
-void record_reader(const char *data, void *context)
+void record_reader(const Record *data, void *context)
 {
   TupleRecordConverter *converter = (TupleRecordConverter *)context;
   converter->add_record(data);

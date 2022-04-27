@@ -56,7 +56,7 @@ public:
   RC delete_record(Trx *trx, ConditionFilter *filter, int *deleted_count);
 
   RC scan_record(Trx *trx, ConditionFilter *filter, int limit, void *context,
-      void (*record_reader)(const char *data, void *context));
+      void (*record_reader)(const Record *data, void *context));
 
   RC create_index(Trx *trx, const char *index_name, const char *attribute_name);
 

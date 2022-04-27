@@ -434,7 +434,17 @@ std::string DefaultStorageStage::load_data(const char *db_name, const char *tabl
       compressed_field->str_map[compressed_byte++] = *iter;
     }
   }
-  int start = mutable_table_meta.field(3)->offset() + mutable_table_meta.field(3)->len();
+  FieldMeta *compressed_field = mutable_table_meta.mutable_field(1);
+  compressed_field->compressed = true;
+  compressed_field->attr_len_ = 1;
+
+  int start = mutable_table_meta.field(0)->offset() + mutable_table_meta.field(0)->len();
+  for (size_t i = 0; i < 3; i++){
+    FieldMeta *field = mutable_table_meta.mutable_field(i + 1);
+    field->attr_offset_ = start;
+    start += field->attr_len_;
+  }
+  
   for (int i = 0; i < 9; i++) {
     FieldMeta *field = mutable_table_meta.mutable_field(i + 4);
     field->attr_offset_ = start;

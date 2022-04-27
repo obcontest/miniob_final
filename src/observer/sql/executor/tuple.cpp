@@ -234,7 +234,7 @@ const std::vector<Tuple> &TupleSet::tuples() const
 TupleRecordConverter::TupleRecordConverter(Table *table, TupleSet &tuple_set) : table_(table), tuple_set_(tuple_set)
 {}
 
-void TupleRecordConverter::add_record(const char *record)
+void TupleRecordConverter::add_record(const Record *record)
 {
   const TupleSchema &schema = tuple_set_.schema();
   Tuple tuple;
@@ -243,22 +243,29 @@ void TupleRecordConverter::add_record(const char *record)
     const FieldMeta *field_meta = table_meta.field(field.field_name());
     assert(field_meta != nullptr);
     if (field_meta->compressed) {
-      auto iter = field_meta->str_map.find(*(uint8_t *)(record + field_meta->offset()));
-      assert(iter != field_meta->str_map.end());
-      const char* s = iter->second.c_str();
-      tuple.add(s, strlen(s));
+      if (field_meta->attr_type_ == INTS) {
+        int page_size = BP_PAGE_DATA_SIZE / sizeof(char);
+        int record_phy_size = align8(table_meta.record_size_);
+        tuple.add((record->rid.page_num - 1) * page_record_capacity(page_size, record_phy_size) + record->rid.slot_num + 1);
+      }
+      else{
+        auto iter = field_meta->str_map.find(*(uint8_t *)(record->data + field_meta->offset()));
+        assert(iter != field_meta->str_map.end());
+        const char* s = iter->second.c_str();
+        tuple.add(s, strlen(s));
+      }
     } else {
       switch (field_meta->type()) {
         case INTS: {
-          int value = *(int *)(record + field_meta->offset());
+          int value = *(int *)(record->data + field_meta->offset());
           tuple.add(value);
         } break;
         case FLOATS: {
-          float value = *(float *)(record + field_meta->offset());
+          float value = *(float *)(record->data + field_meta->offset());
           tuple.add(value);
         } break;
         case CHARS: {
-          const char *s = record + field_meta->offset();  // 现在当做Cstring来处理
+          const char *s = record->data + field_meta->offset();  // 现在当做Cstring来处理
           tuple.add(s, strlen(s));
         } break;
         default: {

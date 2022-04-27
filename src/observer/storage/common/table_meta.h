@@ -52,7 +52,6 @@ public:
   int index_num() const;
 
   int record_size() const;
-
 public:
   int serialize(std::ostream &os) const override;
   int deserialize(std::istream &is) override;
@@ -74,6 +73,7 @@ protected:
 public:
   std::string path_;
   int record_size_ = 0;
+  int slot_num_ = 0;
 };
 
 #endif  // __OBSERVER_STORAGE_COMMON_TABLE_META_H__

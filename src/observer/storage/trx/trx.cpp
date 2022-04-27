@@ -46,7 +46,11 @@ AttrType Trx::trx_field_type()
 
 int Trx::trx_field_len()
 {
+<<<<<<< HEAD
   return 0;
+=======
+  return 0;//sizeof(int32_t);
+>>>>>>> eb97d0d24c87ab00a122726aaae0c5510c971e35
 }
 
 Trx::Trx()
