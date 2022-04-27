@@ -445,7 +445,7 @@ std::string DefaultStorageStage::load_data(const char *db_name, const char *tabl
   std::fstream table_meta_fs;
   table_meta_fs.open(path, std::ios_base::out | std::ios_base::binary);
   if (!table_meta_fs.is_open()) {
-    LOG_ERROR("Failed to open file for write. file name=%s, errmsg=%s", path, strerror(errno));
+    LOG_ERROR("Failed to open file for write. file name=%s, errmsg=%s", path.c_str(), strerror(errno));
   }
 
   // 记录元数据到文件中
