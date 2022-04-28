@@ -29,7 +29,7 @@ struct PageHeader {
   int first_record_offset;  // 第一条记录的偏移量
 };
 
-struct RID {
+struct __attribute__((__packed__)) RID {
   PageNum page_num;  // record's page number
   SlotNum slot_num;  // record's slot number
   // bool    valid;    // true means a valid record
