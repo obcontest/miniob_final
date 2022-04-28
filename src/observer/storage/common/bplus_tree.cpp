@@ -56,17 +56,15 @@ int attribute_comp(const char *first, const char *second, AttrType attr_type, in
   }
   return -2;  // This means error happens
 }
-int key_compare(AttrType attr_type, int attr_length, const char *first, const char *second)
+int key_compare(AttrType attr_type, int attr_length, const char *first, const char *second, const RID *rid1, const RID *rid2)
 {
   int result = attribute_comp(first, second, attr_type, attr_length);
   if (0 != result) {
     return result;
   }
-  RID *rid1 = (RID *)(first + attr_length);
-  RID *rid2 = (RID *)(second + attr_length);
   return RID::compare(rid1, rid2);
 }
-int lower_bound(AttrType attr_type, int attr_length, const char *data, const int item_length, const int item_num, const char *key, bool *_found = nullptr)
+int lower_bound(AttrType attr_type, int attr_length, const char *data, const int item_length, const int item_num, const char *key, const RID *rid, bool *_found = nullptr)
 {
  int left = 0;
  int right = item_num;
@@ -76,7 +74,7 @@ int lower_bound(AttrType attr_type, int attr_length, const char *data, const int
  for ( ; left < right; ) {
    med = (left + right) / 2;
    const char *item = data + item_length * med;
-   int cmp_result = key_compare(attr_type, attr_length, key, item);
+   int cmp_result = key_compare(attr_type, attr_length, key, item, rid, (RID*) data + item_length * med);
    if (cmp_result == 0) {
      last_is_bigger = false;
      found = true;
@@ -103,7 +101,7 @@ int get_page_index_capacity(int attr_length)
 {
 
   int capacity =
-      ((int)BP_PAGE_DATA_SIZE - sizeof(IndexFileHeader) - sizeof(IndexNode)) / (attr_length + 2 * sizeof(RID));
+      ((int)BP_PAGE_DATA_SIZE - sizeof(IndexFileHeader) - sizeof(IndexNode) - sizeof(RID)) / (attr_length + sizeof(RID));
   // Here is some tricks
   // 1. reserver one pair of kV for insert operation
   // 2. make sure capacity % 2 == 0, otherwise it is likeyly to occur problem when split node
@@ -167,7 +165,7 @@ RC BplusTreeHandler::create(const char *file_name, AttrType attr_type, int attr_
 
   IndexFileHeader *file_header = (IndexFileHeader *)pdata;
   file_header->attr_length = attr_length;
-  file_header->key_length = attr_length + sizeof(RID);
+  file_header->key_length = attr_length;
   file_header->attr_type = attr_type;
   file_header->order = get_page_index_capacity(attr_length);
   file_header->root_page = page_num;
@@ -359,6 +357,11 @@ RC BplusTreeHandler::print_leafs()
   return RC::SUCCESS;
 }
 
+bool BplusTreeHandler::validate_node(IndexNode *node) {
+  return true;
+}
+
+/**
 bool BplusTreeHandler::validate_node(IndexNode *node)
 {
   if (node->key_num > file_header_.order) {
@@ -538,6 +541,7 @@ bool BplusTreeHandler::validate_node(IndexNode *node)
 
   return true;
 }
+*/
 
 bool BplusTreeHandler::validate_leaf_link()
 {
@@ -705,7 +709,7 @@ bool BplusTreeHandler::validate_tree()
   return true;
 }
 
-RC BplusTreeHandler::find_leaf(const char *pkey, PageNum *leaf_page)
+RC BplusTreeHandler::find_leaf(const char *pkey, const RID *prid, PageNum *leaf_page)
 {
   BPPageHandle page_handle;
   IndexNode *node = root_node_;
@@ -718,7 +722,7 @@ RC BplusTreeHandler::find_leaf(const char *pkey, PageNum *leaf_page)
     //  if (tmp < 0)
     //    break;
     //}
-    i = lower_bound(file_header_.attr_type, file_header_.attr_length, node->keys, file_header_.key_length, node->key_num, pkey);
+    i = lower_bound(file_header_.attr_type, file_header_.attr_length, node->keys, file_header_.key_length, node->key_num, pkey, prid);
 
     if (page_handle.open == true) {
       disk_buffer_pool_->unpin_page(&page_handle);
@@ -745,7 +749,7 @@ RC BplusTreeHandler::find_leaf(const char *pkey, PageNum *leaf_page)
   return RC::SUCCESS;
 }
 
-RC BplusTreeHandler::insert_entry_into_node(IndexNode *node, const char *pkey, const RID *rid, PageNum left_page)
+RC BplusTreeHandler::insert_entry_into_node(IndexNode *node, const char *pkey, const RID *prid, PageNum left_page)
 {
   int insert_pos = 0, tmp;
 
@@ -762,7 +766,7 @@ RC BplusTreeHandler::insert_entry_into_node(IndexNode *node, const char *pkey, c
 
  bool found = false;
  insert_pos = lower_bound(file_header_.attr_type, file_header_.attr_length, node->keys, file_header_.key_length,
-                          node->key_num, pkey, &found);
+                          node->key_num, pkey, prid, &found);
  if (found) {
    LOG_TRACE("Insert into %d occur duplicated key, rid:%s.", file_id_, node->rids[insert_pos].to_string().c_str());
    return RC::RECORD_DUPLICATE_KEY;
@@ -777,14 +781,14 @@ RC BplusTreeHandler::insert_entry_into_node(IndexNode *node, const char *pkey, c
   if (node->is_leaf) {
     len = (node->key_num - insert_pos) * sizeof(RID);
     memmove(node->rids + insert_pos + 1, node->rids + insert_pos, len);
-    memcpy(node->rids + insert_pos, rid, sizeof(RID));
+    memcpy(node->rids + insert_pos, prid, sizeof(RID));
 
     change_leaf_parent_key_insert(node, insert_pos, left_page);
   } else {
 
     len = (node->key_num - insert_pos) * sizeof(RID);
     memmove(node->rids + insert_pos + 2, node->rids + insert_pos + 1, len);
-    memcpy(node->rids + insert_pos + 1, rid, sizeof(RID));
+    memcpy(node->rids + insert_pos + 1, prid, sizeof(RID));
   }
 
   node->key_num++;  //叶子结点增加一条记录
@@ -832,7 +836,8 @@ RC BplusTreeHandler::split_leaf(BPPageHandle &leaf_page_handle)
   disk_buffer_pool_->mark_dirty(&page_handle2);
 
   PageNum parent_page = old_node->parent;
-  rc = insert_into_parent(parent_page, leaf_page_handle, new_parent_key, page_handle2);
+  RID new_parent_rid{page_handle2.frame->page.page_num, -1};
+  rc = insert_into_parent(parent_page, leaf_page_handle, new_parent_key, &new_parent_rid, page_handle2);
   if (rc != RC::SUCCESS) {
     LOG_WARN("Failed to insert into parent of index %d", file_id_);
     // restore status before insert into parent
@@ -879,7 +884,7 @@ RC BplusTreeHandler::insert_intern_node(
   return RC::SUCCESS;
 }
 
-RC BplusTreeHandler::split_intern_node(BPPageHandle &inter_page_handle, const char *pkey)
+RC BplusTreeHandler::split_intern_node(BPPageHandle &inter_page_handle, const char *pkey, const RID* prid)
 {
   PageNum inter_page_num;
   disk_buffer_pool_->get_page_num(&inter_page_handle, &inter_page_num);
@@ -923,7 +928,7 @@ RC BplusTreeHandler::split_intern_node(BPPageHandle &inter_page_handle, const ch
 
   // print();
   PageNum parent_page = inter_node->parent;
-  rc = insert_into_parent(parent_page, inter_page_handle, new_parent_key, new_page_handle);
+  rc = insert_into_parent(parent_page, inter_page_handle, new_parent_key, prid, new_page_handle);
   if (rc != RC::SUCCESS) {
     LOG_WARN("Failed to insert key to parents, file_id:%d", file_id_);
     merge_nodes(inter_node, new_node, new_page, new_parent_key);
@@ -942,7 +947,7 @@ RC BplusTreeHandler::split_intern_node(BPPageHandle &inter_page_handle, const ch
 }
 
 RC BplusTreeHandler::insert_into_parent(
-    PageNum parent_page, BPPageHandle &left_page_handle, const char *pkey, BPPageHandle &right_page_handle)
+    PageNum parent_page, BPPageHandle &left_page_handle, const char *pkey, const RID *prid, BPPageHandle &right_page_handle)
 {
   if (parent_page == -1) {
     return insert_into_new_root(left_page_handle, pkey, right_page_handle);
@@ -965,11 +970,11 @@ RC BplusTreeHandler::insert_into_parent(
     return rc;
   }
   if (node->key_num > file_header_.order) {
-    rc = split_intern_node(page_handle, pkey);
+    rc = split_intern_node(page_handle, pkey, prid);
     if (rc != RC::SUCCESS) {
       LOG_WARN("Failed to split intern node of index %d", file_id_);
       int delete_index;
-      delete_entry_from_node(node, pkey, delete_index);
+      delete_entry_from_node(node, pkey, delete_index, prid);
     }
   }
 
@@ -1066,10 +1071,10 @@ RC BplusTreeHandler::insert_entry(const char *pkey, const RID *rid)
     return RC::NOMEM;
   }
   memcpy(key, pkey, file_header_.attr_length);
-  memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
+  // memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
 
   PageNum leaf_page;
-  RC rc = find_leaf(key, &leaf_page);
+  RC rc = find_leaf(key, rid, &leaf_page);
   if (rc != RC::SUCCESS) {
     LOG_WARN("Failed to find leaf file_id:%d, %s", file_id_, rid->to_string().c_str());
     mem_pool_item_->free(key);
@@ -1103,7 +1108,7 @@ RC BplusTreeHandler::insert_entry(const char *pkey, const RID *rid)
     if (rc != RC::SUCCESS) {
       LOG_WARN("Failed to insert index of %d, failed to split for rid:%s", file_id_, rid->to_string().c_str());
       int delete_index = 0;
-      delete_entry_from_node(leaf, key, delete_index);
+      delete_entry_from_node(leaf, key, delete_index, rid);
 
       disk_buffer_pool_->unpin_page(&page_handle);
       mem_pool_item_->free(key);
@@ -1305,7 +1310,7 @@ RC BplusTreeHandler::change_leaf_parent_key_insert(IndexNode *node, int changed_
   disk_buffer_pool_->unpin_page(&parent_handle);
   return RC::SUCCESS;
 }
-RC BplusTreeHandler::change_leaf_parent_key_delete(IndexNode *leaf, int delete_indx, const char *old_first_key)
+RC BplusTreeHandler::change_leaf_parent_key_delete(IndexNode *leaf, int delete_indx, const char *old_first_key, const RID* old_first_rid)
 {
   if (delete_indx != 0) {
     return RC::SUCCESS;
@@ -1349,7 +1354,9 @@ RC BplusTreeHandler::change_leaf_parent_key_delete(IndexNode *leaf, int delete_i
       tmp = key_compare(file_header_.attr_type,
           file_header_.attr_length,
           old_first_key,
-          node->keys + index * file_header_.key_length);
+          node->keys + index * file_header_.key_length,
+          old_first_rid,
+          node->rids + index * sizeof(RID));
       if (tmp == 0) {
         found = true;
         memcpy(node->keys + index * file_header_.key_length, leaf->keys, file_header_.key_length);
@@ -1375,13 +1382,13 @@ RC BplusTreeHandler::change_leaf_parent_key_delete(IndexNode *leaf, int delete_i
   }
   return RC::SUCCESS;
 }
-RC BplusTreeHandler::delete_entry_from_node(IndexNode *node, const char *pkey, int &node_delete_index)
+RC BplusTreeHandler::delete_entry_from_node(IndexNode *node, const char *pkey, int &node_delete_index, const RID* prid)
 {
 
   int delete_index, tmp;
   for (delete_index = 0; delete_index < node->key_num; delete_index++) {
     tmp = key_compare(
-        file_header_.attr_type, file_header_.attr_length, pkey, node->keys + delete_index * file_header_.key_length);
+        file_header_.attr_type, file_header_.attr_length, pkey, node->keys + delete_index * file_header_.key_length, prid, node->rids + delete_index * file_header_.key_length);
     if (tmp == 0) {
       node_delete_index = delete_index;
       break;
@@ -1395,7 +1402,7 @@ RC BplusTreeHandler::delete_entry_from_node(IndexNode *node, const char *pkey, i
   delete_entry_from_node(node, delete_index);
 
   // change parent's key
-  change_leaf_parent_key_delete(node, delete_index, pkey);
+  change_leaf_parent_key_delete(node, delete_index, pkey, prid);
   return RC::SUCCESS;
 }
 
@@ -1461,7 +1468,7 @@ RC BplusTreeHandler::change_delete_leaf_link(IndexNode *left, IndexNode *right, 
  * @return
  */
 RC BplusTreeHandler::coalesce_node(BPPageHandle &parent_handle, BPPageHandle &left_handle, BPPageHandle &right_handle,
-    int delete_index, bool check_change_leaf_key, int node_delete_index, const char *pkey)
+    int delete_index, bool check_change_leaf_key, int node_delete_index, const char *pkey, const RID* prid)
 {
   PageNum left_page, right_page, parent_page;
   IndexNode *left, *right, *parent;
@@ -1493,10 +1500,10 @@ RC BplusTreeHandler::coalesce_node(BPPageHandle &parent_handle, BPPageHandle &le
 
   change_delete_leaf_link(left, right, right_page);
   if (check_change_leaf_key) {
-    change_leaf_parent_key_delete(right, node_delete_index, pkey);
+    change_leaf_parent_key_delete(right, node_delete_index, pkey, prid);
   }
 
-  rc = delete_entry_internal(parent_page, parent_key);
+  rc = delete_entry_internal(parent_page, parent_key, parent->rids + delete_index * file_header_.key_length);
   if (rc != RC::SUCCESS) {
     LOG_WARN("Failed to delete internal entry of index ", file_id_);
 
@@ -1900,7 +1907,7 @@ RC BplusTreeHandler::can_merge_with_other(BPPageHandle *page_handle, PageNum pag
   return RC::SUCCESS;
 }
 
-RC BplusTreeHandler::delete_entry_internal(PageNum page_num, const char *pkey)
+RC BplusTreeHandler::delete_entry_internal(PageNum page_num, const char *pkey, const RID* prid)
 {
   BPPageHandle page_handle;
   RC rc = disk_buffer_pool_->get_this_page(file_id_, page_num, &page_handle);
@@ -1918,7 +1925,7 @@ RC BplusTreeHandler::delete_entry_internal(PageNum page_num, const char *pkey)
   IndexNode *node = get_index_node(pdata);
 
   int node_delete_index = -1;
-  rc = delete_entry_from_node(node, pkey, node_delete_index);
+  rc = delete_entry_from_node(node, pkey, node_delete_index, prid);
   if (rc != RC::SUCCESS) {
     LOG_WARN("Failed to delete index %d", file_id_);
     return rc;
@@ -1937,7 +1944,7 @@ RC BplusTreeHandler::delete_entry_internal(PageNum page_num, const char *pkey)
       rc = clean_root_after_delete(node);
       if (rc != RC::SUCCESS) {
         LOG_WARN("Failed to clean root after delete all entry in the root, file_id:%d", file_id_);
-        insert_entry_into_node(node, pkey, (RID *)(pkey + file_header_.attr_length), page_num);
+        insert_entry_into_node(node, pkey, prid, page_num);
         disk_buffer_pool_->unpin_page(&page_handle);
         return rc;
       }
@@ -1958,7 +1965,7 @@ RC BplusTreeHandler::delete_entry_internal(PageNum page_num, const char *pkey)
   rc = get_parent_changed_index(parent_handle, parent, node, page_num, delete_index);
   if (rc != RC::SUCCESS) {
     LOG_WARN("Failed to get parent delete index");
-    insert_entry_into_node(node, pkey, (RID *)(pkey + file_header_.attr_length), page_num);
+    insert_entry_into_node(node, pkey, prid, page_num);
     disk_buffer_pool_->unpin_page(&page_handle);
     return rc;
   }
@@ -2010,16 +2017,16 @@ RC BplusTreeHandler::delete_entry_internal(PageNum page_num, const char *pkey)
     rc = redistribute_nodes(parent_handle, left_handle, page_handle);
   } else if (can_merge_with_right) {
     rc = redistribute_nodes(parent_handle, page_handle, right_handle);
-    change_leaf_parent_key_delete(node, node_delete_index, pkey);
+    change_leaf_parent_key_delete(node, node_delete_index, pkey, prid);
   } else if (force_collapse_with_right) {
-    rc = coalesce_node(parent_handle, page_handle, right_handle, delete_index, true, node_delete_index, pkey);
+    rc = coalesce_node(parent_handle, page_handle, right_handle, delete_index, true, node_delete_index, pkey, prid);
     if (rc == RC::SUCCESS) {
       disk_buffer_pool_->unpin_page(&page_handle);
       disk_buffer_pool_->dispose_page(file_id_, page_num);
       page_handle.open = false;
     }
   } else {
-    rc = coalesce_node(parent_handle, left_handle, page_handle, delete_index - 1, false, node_delete_index, pkey);
+    rc = coalesce_node(parent_handle, left_handle, page_handle, delete_index - 1, false, node_delete_index, pkey, prid);
     if (rc == RC::SUCCESS) {
       disk_buffer_pool_->unpin_page(&left_handle);
       disk_buffer_pool_->dispose_page(file_id_, left_page);
@@ -2058,15 +2065,15 @@ RC BplusTreeHandler::delete_entry(const char *data, const RID *rid)
     return RC::NOMEM;
   }
   memcpy(pkey, data, file_header_.attr_length);
-  memcpy(pkey + file_header_.attr_length, rid, sizeof(*rid));
+  // memcpy(pkey + file_header_.attr_length, rid, sizeof(*rid));
 
   PageNum leaf_page;
-  RC rc = find_leaf(pkey, &leaf_page);
+  RC rc = find_leaf(pkey, rid, &leaf_page);
   if (rc != RC::SUCCESS) {
     mem_pool_item_->free(pkey);
     return rc;
   }
-  rc = delete_entry_internal(leaf_page, pkey);
+  rc = delete_entry_internal(leaf_page, pkey, rid);
   if (rc != RC::SUCCESS) {
     LOG_WARN("Failed to delete index %d", file_id_);
     mem_pool_item_->free(pkey);
@@ -2102,9 +2109,9 @@ RC BplusTreeHandler::find_first_index_satisfied(CompOp compop, const char *key, 
     return RC::NOMEM;
   }
   memcpy(pkey, key, file_header_.attr_length);
-  memcpy(pkey + file_header_.attr_length, &rid, sizeof(RID));
+  // memcpy(pkey + file_header_.attr_length, &rid, sizeof(RID));
 
-  rc = find_leaf(pkey, &leaf_page);
+  rc = find_leaf(pkey, &rid, &leaf_page);
   if (rc != RC::SUCCESS) {
     LOG_WARN("Failed to find leaf page of index %d", file_id_);
     mem_pool_item_->free(pkey);

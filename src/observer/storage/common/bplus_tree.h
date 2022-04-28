@@ -177,24 +177,24 @@ public:
   bool validate_leaf_link();
 
 protected:
-  RC find_leaf(const char *pkey, PageNum *leaf_page);
+  RC find_leaf(const char *pkey, const RID *prid, PageNum *leaf_page);
 
   RC insert_into_parent(
-      PageNum parent_page, BPPageHandle &left_page_handle, const char *pkey, BPPageHandle &right_page_handle);
+      PageNum parent_page, BPPageHandle &left_page_handle, const char *pkey, const RID *prid, BPPageHandle &right_page_handle);
   RC insert_intern_node(BPPageHandle &parent_page_handle, BPPageHandle &left_page_handle,
       BPPageHandle &right_page_handle, const char *pkey);
   RC split_leaf(BPPageHandle &leaf_page_handle);
-  RC split_intern_node(BPPageHandle &parent_page_handle, const char *pkey);
+  RC split_intern_node(BPPageHandle &parent_page_handle, const char *pkey, const RID *prid);
 
-  RC delete_entry_internal(PageNum page_num, const char *pkey);
+  RC delete_entry_internal(PageNum page_num, const char *pkey, const RID* prid);
   RC coalesce_node(BPPageHandle &parent_handle, BPPageHandle &left_handle, BPPageHandle &right_handle, int delete_index,
-      bool check_change_leaf_key, int node_delete_index, const char *pkey);
+      bool check_change_leaf_key, int node_delete_index, const char *pkey, const RID *prid);
 
   RC insert_into_new_root(BPPageHandle &left_page_handle, const char *pkey, BPPageHandle &right_page_handle);
   RC clean_root_after_delete(IndexNode *old_root);
 
   RC insert_entry_into_node(IndexNode *node, const char *pkey, const RID *rid, PageNum left_page);
-  RC delete_entry_from_node(IndexNode *node, const char *pkey, int &node_delete_index);
+  RC delete_entry_from_node(IndexNode *node, const char *pkey, int &node_delete_index, const RID* prid);
   void delete_entry_from_node(IndexNode *node, const int delete_index);
 
   RC redistribute_nodes(BPPageHandle &parent_handle, BPPageHandle &left_handle, BPPageHandle &right_handle);
@@ -217,7 +217,7 @@ protected:
   RC get_parent_changed_index(
       BPPageHandle &parent_handle, IndexNode *&parent, IndexNode *node, PageNum page_num, int &changed_index);
   RC change_leaf_parent_key_insert(IndexNode *node, int changed_indx, PageNum page_num);
-  RC change_leaf_parent_key_delete(IndexNode *leaf, int delete_indx, const char *old_first_key);
+  RC change_leaf_parent_key_delete(IndexNode *leaf, int delete_indx, const char *old_first_key, const RID* old_first_rid);
   RC change_insert_leaf_link(IndexNode *left, IndexNode *right, PageNum right_page);
   RC change_delete_leaf_link(IndexNode *left, IndexNode *right, PageNum right_page);
 
